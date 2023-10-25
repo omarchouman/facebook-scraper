@@ -1,8 +1,8 @@
 import time
-import re
 from selenium import webdriver
 from selenium_stealth import stealth
 from bs4 import BeautifulSoup
+from helpers import get_page_name, convert_facebook_date
 
 
 def get_posts(account: str):
@@ -38,6 +38,7 @@ def get_posts(account: str):
 
     soup = BeautifulSoup(driver.page_source, "html.parser")
     posts = soup.find_all("div", class_="x78zum5 xdt5ytf")
+
     results = []
 
     for post in posts:
@@ -53,9 +54,9 @@ def get_posts(account: str):
         else:
             post_date = "No date available"
 
-        reaction_count_element = post.select_one(".x1ja2u2z .xrbpyxo span span span.xt0b8zv.x1e558r4")
+        reaction_count_element = post.select_one('.xrbpyxo span.x1e558r4')
         if reaction_count_element:
-            reaction_count = reaction_count_element.get_text(strip=True)
+            reaction_count = reaction_count_element.text
         else:
             reaction_count = "No reaction count available"
 
@@ -67,25 +68,10 @@ def get_posts(account: str):
 
         results.append({
             "text": post_text,
-            "date": post_date,
-            "reaction_count": reaction_count,
+            "date": convert_facebook_date(post_date),
+            "reaction_count": int(reaction_count),
             "image_link": image_link
         })
 
     driver.quit()
     return results
-
-
-def get_page_name_from_url(url):
-    match = re.search(r'https://www\.facebook\.com/(?P<page_name>\w+)', url)
-    if match:
-        return match.group('page_name')
-    else:
-        return None
-
-
-def get_page_name(user_input):
-    if re.match(r'https://www\.facebook\.com/(\w+)', user_input):
-        return get_page_name_from_url(user_input)
-    else:
-        return user_input
