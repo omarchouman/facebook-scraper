@@ -1,16 +1,20 @@
 import re
 import time
 from selenium import webdriver
+from selenium.webdriver.common.by import By
 from selenium_stealth import stealth
 from bs4 import BeautifulSoup
 from helpers import get_page_name, convert_facebook_date
 
 
-def get_posts(account: str, limit: int = 1):
+def get_posts(account: str, limit: int = 5):
     options = webdriver.ChromeOptions()
     options.add_argument("--headless")
+    options.add_argument('--no-sandbox')
     options.add_experimental_option("excludeSwitches", ["enable-automation"])
     options.add_experimental_option("useAutomationExtension", False)
+    options.add_argument("--disable-popup-blocking")
+
     driver = webdriver.Chrome(options=options)
 
     stealth(
@@ -33,11 +37,20 @@ def get_posts(account: str, limit: int = 1):
 
     driver.get(url)
 
+    time.sleep(3)
+
+    try:
+        close_button = driver.find_element(By.CSS_SELECTOR, "div[aria-label='Close']")
+        close_button.click()
+        time.sleep(1)
+    except Exception as e:
+        print("Close button not found or not clickable:", str(e))
+
     results = []
 
     while len(results) < limit:
         driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
-        time.sleep(2)
+        time.sleep(5)
 
         soup = BeautifulSoup(driver.page_source, "html.parser")
         posts = soup.find_all("div", class_="x1yztbdb x1n2onr6 xh8yej3 x1ja2u2z")
@@ -82,7 +95,7 @@ def get_posts(account: str, limit: int = 1):
                 "post_id": post_id,
                 "text": post_text,
                 "date": convert_facebook_date(post_date),
-                "reaction_count": int(reaction_count),
+                "reaction_count": reaction_count,
                 "image_link": image_link
             })
 
