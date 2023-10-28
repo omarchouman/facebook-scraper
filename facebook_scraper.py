@@ -5,6 +5,7 @@ from selenium.webdriver.common.by import By
 from selenium_stealth import stealth
 from bs4 import BeautifulSoup
 from helpers import get_page_name, convert_facebook_date
+from datetime import datetime, timedelta
 
 
 def get_posts(account: str, limit: int = 5):
@@ -73,9 +74,16 @@ def get_posts(account: str, limit: int = 5):
             else:
                 post_text = "No text available"
 
-            post_date_element = post.select_one(".x1iyjqo2 span.x193iq5w.xeuugli.x13faqbe.x1vvkbs.x1xmvt09.x1lliihq.x1s928wv.xhkezso.x1gmr53x.x1cpjm7i.x1fgarty.x1943h6x.x4zkp8e.x676frb.x1nxh6w3.x1sibtaa.xo1l8bm.xi81zsa.x1yc453h")
+            # post_date_element = post.select_one(".x1iyjqo2 span.x193iq5w.xeuugli.x13faqbe.x1vvkbs.x1xmvt09.x1lliihq.x1s928wv.xhkezso.x1gmr53x.x1cpjm7i.x1fgarty.x1943h6x.x4zkp8e.x676frb.x1nxh6w3.x1sibtaa.xo1l8bm.xi81zsa.x1yc453h")
+            # if post_date_element:
+            #     post_date = post_date_element.get_text(strip=True)
+            # else:
+            #     post_date = "No date available"
+
+            post_date_element = post.select_one(
+                ".x1iyjqo2 span.x193iq5w.xeuugli.x13faqbe.x1vvkbs.x1xmvt09.x1lliihq.x1s928wv.xhkezso.x1gmr53x.x1cpjm7i.x1fgarty.x1943h6x.x4zkp8e.x676frb.x1nxh6w3.x1sibtaa.xo1l8bm.xi81zsa.x1yc453h")
             if post_date_element:
-                post_date = post_date_element.get_text(strip=True)
+                post_date = parse_facebook_date(post_date_element.get_text(strip=True))
             else:
                 post_date = "No date available"
 
@@ -94,10 +102,53 @@ def get_posts(account: str, limit: int = 5):
             results.append({
                 "post_id": post_id,
                 "text": post_text,
-                "date": convert_facebook_date(post_date),
+                "date": post_date,
                 "reaction_count": reaction_count,
                 "image_link": image_link
             })
 
     driver.quit()
     return results
+
+
+def convert_relative_time(relative_time):
+    current_time = datetime.now()
+
+    if 's' in relative_time:
+        seconds_ago = int(relative_time.split(' ')[0])
+        return current_time - timedelta(seconds=seconds_ago)
+    elif 'm' in relative_time:
+        minutes_ago = int(relative_time.split(' ')[0])
+        return current_time - timedelta(minutes=minutes_ago)
+    elif 'h' in relative_time:
+        hours_ago = int(relative_time.split(' ')[0])
+        return current_time - timedelta(hours=hours_ago)
+    elif 'd' in relative_time:
+        days_ago = int(relative_time.split(' ')[0])
+        return current_time - timedelta(days=days_ago)
+    else:
+        return None
+
+
+def parse_facebook_date(date_str):
+    # Check if the date contains a duration
+    if 'ago' in date_str:
+        relative_time_match = re.search(r'(\d+)\s\w', date_str)
+        if relative_time_match:
+            relative_time = relative_time_match.group(1)
+            absolute_time = convert_relative_time(relative_time)
+            return absolute_time.strftime("%Y-%m-%d %H:%M:%S") if absolute_time else "Invalid date"
+        else:
+            return "Invalid date"
+
+    # Try to extract the date in "day month at time" format
+    absolute_date_match = re.search(r'(\d{1,2} \w+ at \d{1,2}:\d{2})', date_str)
+    if absolute_date_match:
+        return absolute_date_match.group(1)
+
+    # Try to extract the date in "day month" format
+    absolute_date_match = re.search(r'(\d{1,2} \w+)', date_str)
+    if absolute_date_match:
+        return absolute_date_match.group(1)
+
+    return "Invalid date"
